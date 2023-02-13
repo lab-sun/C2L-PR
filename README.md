@@ -6,3 +6,4 @@ The code will be available upon acceptance of the paper.
 Video (best viewed in 1080p quality): https://www.youtube.com/watch?v=60S9BFzgWI0
 
 
+![cover](./images/cover.png)](https://www.youtube.com/watch?v=60S9BFzgWI0)
