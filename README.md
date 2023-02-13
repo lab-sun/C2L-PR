@@ -5,5 +5,4 @@ The code will be available upon acceptance of the paper.
 
 Video (best viewed in 1080p quality): https://www.youtube.com/watch?v=60S9BFzgWI0
 
-[![](https://i.ytimg.com/vi/60S9BFzgWI0/maxresdefault.jpg)](https://www.youtube.com/watch?v=60S9BFzgWI0 "")
 
