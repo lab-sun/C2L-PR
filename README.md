@@ -7,7 +7,7 @@ This work has been accepted by IEEE T-IV 2024. tada:
 
 ## Overview
 <p align='center'>
-<img src="./images/overview.jpg" width="720px">
+<img src="./images/overview.jpg" width="700px">
 </p>
 The figure illustrates our idea of cross-modal place recognition with a visual image against a pre-built LiDAR point-cloud database. Given an on-line query image captured by a vehicle-mounted monocular camera, a semantic point cloud is generated from the image to alleviate the modality gap to find the matched reference point cloud in the database.
 
