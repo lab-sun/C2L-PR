@@ -95,6 +95,6 @@ If you use C2L-PR in an academic work, please cite our paper:
 
 ## Contact
 
-yx.sun@polyu.edu.hk
+yx.sun@cityu.edu.hk
 
-Website: https://yuxiangsun.github.io/
+Website:  [https://www.labsun.org/](https://www.labsun.org/)
