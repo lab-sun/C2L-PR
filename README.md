@@ -80,20 +80,17 @@ We thank the fantastic work [RINet](https://github.com/lilin-hitcrt/RINet) for i
 
 ## Citation
 If you use C2L-PR in an academic work, please cite our paper:
-
-    @ARTICLE{10586273,
-    author={Xu, Huaiyuan and Liu, Huaping and Huang, Shoudong and Sun, Yuxiang},
-    journal={IEEE Transactions on Intelligent Vehicles}, 
-    title={C2L-PR: Cross-modal Camera-to-LiDAR Place Recognition via Modality Alignment and Orientation Voting}, 
-    year={2024},
-    volume={},
-    number={},
-    pages={1-17},
-    doi={10.1109/TIV.2024.3423392}}
-
- 
+```
+@ARTICLE{xu2025c2l,
+  author={Huaiyuan Xu and Huaping Liu and Shoudong Huang and Yuxiang Sun},
+  journal={IEEE Transactions on Intelligent Vehicles}, 
+  title={C2L-PR: Cross-Modal Camera-to-LiDAR Place Recognition via Modality Alignment and Orientation Voting}, 
+  year={2025},
+  volume={10},
+  number={2},
+  pages={1128-1144},
+  doi={10.1109/TIV.2024.3423392}}
+``` 
 
 ## Contact
 huaiyuan.xu@polyu.edu.hk
-
-Website:  [https://www.labsun.org/](https://www.labsun.org/)
