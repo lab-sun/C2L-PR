@@ -21,11 +21,14 @@ Demo video (best viewed in 1080p quality): https://www.youtube.com/watch?v=60S9B
 
 ### Installation and Data Preparation
 
-step 1. Please prepare environment as that in [Docker](docker/Dockerfile).
+step 1. Prepare the environment with [Docker](docker/Dockerfile), or install the Python packages from requirements.txt.
 ```shell script
 $ cd docker
 $ docker build -t your_docker_image .
 $ docker run -it --shm-size 8G -p 1001:6006 -p 1000:22 --ipc host --name your_docker_container --gpus all -v ~/your_project_direction:/workspace your_docker_image  /bin/bash 
+```
+```shell script
+$ pip install -r requirements.txt
 ```
 
 step 2. Prepare C2L-PR repo by.
@@ -57,20 +60,26 @@ C2L-PR/
     ...
 ```
 ## Train models
-In train.py, please modify os.environ['CUDA_VISIBLE_DEVICES'], pointing to a specifc graphic card. Please modify directions of 'gt_folder','velo_desc_folder_0' to '7', and 'img_desc_folder', appropriately.
+Pass `--gpu` to train.py (for example `--gpu 0`), or set the `CUDA_VISIBLE_DEVICES` environment variable. Please modify directions of 'gt_folder','velo_desc_folder_0' to '7', and 'img_desc_folder', appropriately.
 Then, run the following command:
 ```shell
 $ sh train.sh
 ```
 
 ## Evaluate models
-In eval_f1.py, please modify os.environ['CUDA_VISIBLE_DEVICES'].
+Pass `--gpu` to eval_f1.py and eval_recall.py, or set the `CUDA_VISIBLE_DEVICES` environment variable.
 In eval_f1.sh, please modify '--model', '--velo_desc_file_0' to '7', '--img_desc_file', '--pairs_file', appropriately.
 ```shell
 # Evaluate place recognition. We take F1 score as the metric.
 $ sh eval_f1.sh
 # Evaluate loop closure. We take recall@K as the metric.
 $ sh eval_recall.sh
+```
+
+## Run tests
+```shell
+$ pip install -r requirements.txt pytest hypothesis
+$ pytest -q tests
 ```
 
 ## Acknowledgement

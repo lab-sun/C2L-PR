@@ -1,0 +1,5 @@
+__pycache__/
+*.pyc
+.mutmut-cache
+mutants/
+html/

@@ -1,3 +1,14 @@
+import os
+import argparse
+
+# Read --gpu before importing torch, which reads CUDA_VISIBLE_DEVICES once.
+# Without --gpu, the script keeps the caller's CUDA_VISIBLE_DEVICES.
+_gpu_parser = argparse.ArgumentParser(add_help=False)
+_gpu_parser.add_argument('--gpu', type=str, default=None)
+_gpu_args, _ = _gpu_parser.parse_known_args()
+if _gpu_args.gpu is not None:
+    os.environ['CUDA_VISIBLE_DEVICES'] = _gpu_args.gpu
+
 import string
 import torch
 from net import RINet_attention
@@ -6,12 +17,8 @@ import numpy as np
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 from sklearn import metrics
-import os
-import argparse
 # from tensorboardX import SummaryWriter
 from torch.utils.tensorboard.writer import SummaryWriter
-
-os.environ['CUDA_VISIBLE_DEVICES'] = "6"
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu") 
 
@@ -53,7 +60,7 @@ def train(cfg):
     starting_epoch = 0
     batch_num = 0
     if not cfg.model == "":
-        checkpoint = torch.load(cfg.model)
+        checkpoint = torch.load(cfg.model, map_location=device)
         starting_epoch = checkpoint['epoch']
         batch_num = checkpoint['batch_num']
         net.load_state_dict(checkpoint['state_dict'])
@@ -223,6 +230,8 @@ if __name__ == '__main__':
                         default=1e-6, help='Weight decay. [default: 1e-6]')
     parser.add_argument('--margin', type=float, default=0.2,
                         help='Margin used in contrastive loss. [default: 0.2]')
+    parser.add_argument('--gpu', type=str, default=None,
+                        help='GPU id, set as CUDA_VISIBLE_DEVICES. [default: None]')
     cfg = parser.parse_args()
     if(not os.path.exists(os.path.join(cfg.log_dir, cfg.seq))):
         os.makedirs(os.path.join(cfg.log_dir, cfg.seq))

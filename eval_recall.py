@@ -1,16 +1,23 @@
+import os
+import sys
+import argparse
+
+# Read --gpu before importing torch, which reads CUDA_VISIBLE_DEVICES once.
+# Without --gpu, the script keeps the caller's CUDA_VISIBLE_DEVICES.
+_gpu_parser = argparse.ArgumentParser(add_help=False)
+_gpu_parser.add_argument('--gpu', type=str, default=None)
+_gpu_args, _ = _gpu_parser.parse_known_args()
+if _gpu_args.gpu is not None:
+    os.environ['CUDA_VISIBLE_DEVICES'] = _gpu_args.gpu
+
 import torch
 from net import RINet_attention
 import numpy as np
 from torch.utils.data import DataLoader
 from tqdm import tqdm
-import os
 from sklearn import metrics
 from matplotlib import pyplot as plt
-import sys
 import time
-import argparse
-
-os.environ['CUDA_VISIBLE_DEVICES'] = "6"
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -160,6 +167,8 @@ if __name__ == '__main__':
 
     parser.add_argument('--eval_type', default="recall",
                         help='Type of evaluation (f1 or recall). [default: f1]')
+    parser.add_argument('--gpu', type=str, default=None,
+                        help='GPU id, set as CUDA_VISIBLE_DEVICES. [default: None]')
 
     cfg = parser.parse_args()
     if cfg.dataset == "kitti" and cfg.eval_type == "recall":

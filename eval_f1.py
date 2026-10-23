@@ -1,19 +1,87 @@
+import os
+import sys
+import argparse
+
+# Read --gpu before importing torch, which reads CUDA_VISIBLE_DEVICES once.
+# Without --gpu, the script keeps the caller's CUDA_VISIBLE_DEVICES.
+_gpu_parser = argparse.ArgumentParser(add_help=False)
+_gpu_parser.add_argument('--gpu', type=str, default=None)
+_gpu_args, _ = _gpu_parser.parse_known_args()
+if _gpu_args.gpu is not None:
+    os.environ['CUDA_VISIBLE_DEVICES'] = _gpu_args.gpu
+
+import warnings
+
 import torch
 from net import RINet_attention
 import numpy as np
 from torch.utils.data import DataLoader
 from tqdm import tqdm
-import os
 from sklearn import metrics
 # import matplotlib
 # matplotlib.use('TkAgg')
-import sys
 import time
-import argparse
-
-os.environ['CUDA_VISIBLE_DEVICES'] = "6"
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+
+def inverse_squared_l2(desc1, desc2):
+    """Per-row 1 / ||desc1 - desc2||^2. A zero distance is +inf.
+
+    The sum is float64 so NumPy 1.x and NumPy 2 (NEP 50) agree, and so a
+    large but finite bin does not overflow to a similarity of 0.
+    """
+    with np.errstate(divide="ignore", invalid="ignore", over="ignore"):
+        diff = np.asarray(desc1, dtype=np.float64) - np.asarray(desc2, dtype=np.float64)
+        sq = np.sum(diff * diff, axis=1)
+        return 1.0 / sq
+
+
+def max_inverse_squared_l2(desc1, desc2_list):
+    """Best-view inverse squared L2.
+
+    NaN views are ignored. A row that is NaN on every view becomes 0.
+    +inf (a perfect match) becomes the float64 maximum.
+    """
+    cols = []
+    for desc2 in desc2_list:
+        cols.append(np.asarray(inverse_squared_l2(desc1, desc2)).reshape(-1, 1))
+    stacked = np.concatenate(cols, axis=1)
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", RuntimeWarning)
+        # np.max would turn one NaN view into a score of 0 and drop a real match.
+        best = np.nanmax(stacked, axis=1)
+    return np.nan_to_num(best)
+
+
+def f1_from_precision_recall(precision, recall):
+    """Harmonic mean of precision and recall. 0/0 is 0, not NaN."""
+    precision = np.asarray(precision, dtype=np.float64)
+    recall = np.asarray(recall, dtype=np.float64)
+    with np.errstate(divide="ignore", invalid="ignore"):
+        f1 = 2 * precision * recall / (precision + recall)
+    return np.nan_to_num(f1)
+
+
+def max_f1_from_pr(precision, recall):
+    return np.max(f1_from_precision_recall(precision, recall))
+
+
+def pr_max_f1(y_true, y_score):
+    """Maximum F1 along the precision-recall curve. Higher scores are better."""
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        precision, recall, _thresholds = metrics.precision_recall_curve(
+            np.asarray(y_true).reshape(-1),
+            np.asarray(y_score, dtype=np.float64).reshape(-1),
+        )
+    return max_f1_from_pr(precision, recall)
+
+
+def max_view_scores(score_list):
+    """Elementwise max across score vectors, one vector per view."""
+    cols = [np.asarray(score).reshape(-1, 1) for score in score_list]
+    return np.max(np.concatenate(cols, axis=1), axis=1)
 
 
 def fast_eval(seq='00', model_file="./model/attention/00.ckpt", pair_file='./data/pairs_kitti/neg_100/00.txt', use_l2_dis=False,
@@ -57,7 +125,8 @@ def fast_eval(seq='00', model_file="./model/attention/00.ckpt", pair_file='./dat
     velo_descs_7_torch = torch.from_numpy(velo_desc_7_o).to(device)
 
     with torch.no_grad():
-        torch.cuda.synchronize()
+        if device.type == 'cuda':
+            torch.cuda.synchronize()
         
         img_descs = net.gen_feature(img_descs_torch).cpu().numpy()
         
@@ -71,21 +140,20 @@ def fast_eval(seq='00', model_file="./model/attention/00.ckpt", pair_file='./dat
         velo_7_descs = net.gen_feature(velo_descs_7_torch).cpu().numpy()
         
 
-        torch.cuda.synchronize()
+        if device.type == 'cuda':
+            torch.cuda.synchronize()
         
     pairs = np.genfromtxt(pair_file, dtype='int32').reshape(-1, 3)
     if use_l2_dis:
 
         desc1 = img_descs[pairs[:, 0]]
-        desc2 = velo_descs[pairs[:, 1]]
-
-        diff = desc1-desc2
-        diff = 1./np.sum(diff*diff, axis=1)
-        diff = diff.reshape(-1, 1)
-        diff = np.nan_to_num(diff)
-        label = pairs[:, 2].reshape(-1, 1)
-        precision, recall, pr_thresholds = metrics.precision_recall_curve(
-            label, diff)
+        desc2_list = []
+        for velo_descs in [velo_0_descs, velo_1_descs, velo_2_descs, velo_3_descs,
+                           velo_4_descs, velo_5_descs, velo_6_descs, velo_7_descs]:
+            desc2_list.append(velo_descs[pairs[:, 1]])
+        diff = max_inverse_squared_l2(desc1, desc2_list)
+        label = pairs[:, 2]
+        F1_max_score_split = pr_max_f1(label, diff)
     else:
         desc1 = torch.from_numpy(img_descs[pairs[:, 0]]).to(device)
         
@@ -101,7 +169,8 @@ def fast_eval(seq='00', model_file="./model/attention/00.ckpt", pair_file='./dat
         
         
         with torch.no_grad():
-            torch.cuda.synchronize()
+            if device.type == 'cuda':
+                torch.cuda.synchronize()
             
             scores_0, _ = net.gen_score(desc1, desc2_0)
             scores_1, _ = net.gen_score(desc1, desc2_1)
@@ -121,20 +190,16 @@ def fast_eval(seq='00', model_file="./model/attention/00.ckpt", pair_file='./dat
             scores_6 = scores_6.cpu().numpy()
             scores_7 = scores_7.cpu().numpy()
 
-            torch.cuda.synchronize()
+            if device.type == 'cuda':
+                torch.cuda.synchronize()
             
-        gt = pairs[:, 2].reshape(-1, 1)
-        
-        scores_concat=np.concatenate([scores_0.reshape(-1, 1), scores_1.reshape(-1, 1),scores_2.reshape(-1, 1),scores_3.reshape(-1, 1),scores_4.reshape(-1, 1),scores_5.reshape(-1, 1),scores_6.reshape(-1, 1),scores_7.reshape(-1, 1)], axis=1)
-        scores_max=np.max(scores_concat, axis=1)
-        
-        precision_split, recall_split, pr_thresholds_split = metrics.precision_recall_curve(
-            gt, scores_max)
+        gt = pairs[:, 2]
+        scores_max = max_view_scores([
+            scores_0, scores_1, scores_2, scores_3,
+            scores_4, scores_5, scores_6, scores_7,
+        ])
+        F1_max_score_split = pr_max_f1(gt, scores_max)
 
-
-    F1_score_split = 2 * precision_split * recall_split / (precision_split + recall_split)
-    F1_score_split = np.nan_to_num(F1_score_split)
-    F1_max_score_split = np.max(F1_score_split)
     print("F1_split:", F1_max_score_split)
     
 
@@ -173,6 +238,8 @@ if __name__ == '__main__':
     
     parser.add_argument('--eval_type', default="f1",
                         help='Type of evaluation (f1 or recall). [default: f1]')
+    parser.add_argument('--gpu', type=str, default=None,
+                        help='GPU id, set as CUDA_VISIBLE_DEVICES. [default: None]')
     cfg = parser.parse_args()
     if cfg.dataset == "kitti" and cfg.eval_type == "f1":
         fast_eval(seq=cfg.seq, model_file=cfg.model,

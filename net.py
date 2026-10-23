@@ -139,7 +139,7 @@ class RINet_attention(nn.Module):
         return out, torch.norm(diff, dim=1)
 
     def load(self, model_file):
-        checkpoint = torch.load(model_file)
+        checkpoint = torch.load(model_file, map_location='cpu')
         self.load_state_dict(checkpoint['state_dict'])
 
 
@@ -154,9 +154,7 @@ if __name__ == "__main__":
     c = torch.from_numpy(np.array(c, dtype='float32'))
     # out1,_=net(a,c)
     # out2,_=net(a,b)
-    out3, diff = net(c, b)
-    print(diff)
-    # print(norm.shape)
-    # print(out1)
-    # print(out2)
-    # print(out3)
+    out, diff, out_cat = net(c, b, b, b, b, b, b, b, b)
+    print(out.shape)
+    print(diff.shape)
+    print(out_cat.shape)
